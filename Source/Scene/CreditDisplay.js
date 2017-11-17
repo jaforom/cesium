@@ -162,16 +162,22 @@ define([
         }
         //>>includeEnd('debug');
 
-        var imageContainer = document.createElement('span');
+        var lightbox = document.createElement('div');
+        lightbox.className = 'cesium-credit-lightbox collapsed';
+
+        var imageContainer = document.createElement('div');
         imageContainer.className = 'cesium-credit-imageContainer';
         var textContainer = document.createElement('span');
         textContainer.className = 'cesium-credit-textContainer';
         container.appendChild(imageContainer);
         container.appendChild(textContainer);
 
+        document.body.appendChild(lightbox);
+
         this._delimiter = defaultValue(delimiter, ' • ');
         this._textContainer = textContainer;
         this._imageContainer = imageContainer;
+        this._lightbox = lightbox;
         this._defaultImageCredits = [];
         this._defaultTextCredits = [];
 
@@ -304,6 +310,7 @@ define([
     CreditDisplay.prototype.destroy = function() {
         this.container.removeChild(this._textContainer);
         this.container.removeChild(this._imageContainer);
+        document.body.removeChild(this._lightbox);
 
         return destroyObject(this);
     };
