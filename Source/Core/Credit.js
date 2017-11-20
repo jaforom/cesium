@@ -1,8 +1,10 @@
 define([
+    './defaultValue',
     './defined',
     './defineProperties',
     './DeveloperError'
 ], function(
+    defaultValue,
     defined,
     defineProperties,
     DeveloperError) {
@@ -17,7 +19,7 @@ define([
      * @param {String} [text] The text to be displayed on the screen if no imageUrl is specified.
      * @param {String} [imageUrl] The source location for an image
      * @param {String} [link] A URL location for which the credit will be hyperlinked
-     * @param {String} [alwaysShow=false] If true, the credit will be visible in the main credit container.  Otherwise, it will appear in a popover
+     * @param {String} [showInPopup=true] If false, the credit will be visible in the main credit container.  Otherwise, it will appear in a popover
      *
      * @alias Credit
      * @constructor
@@ -26,7 +28,7 @@ define([
      * //Create a credit with a tooltip, image and link
      * var credit = new Cesium.Credit('Cesium', '/images/cesium_logo.png', 'http://cesiumjs.org/');
      */
-    function Credit(text, imageUrl, link, alwaysShow) {
+    function Credit(text, imageUrl, link, showInPopup) {
         var hasLink = (defined(link));
         var hasImage = (defined(imageUrl));
         var hasText = (defined(text));
@@ -46,7 +48,7 @@ define([
         this._link = link;
         this._hasLink = hasLink;
         this._hasImage = hasImage;
-        this._alwaysShow = false;
+        this._showInPopup = defaultValue(showInPopup, true);
 
         // Credits are immutable so generate an id to use to optimize equal()
         var id;
@@ -118,9 +120,9 @@ define([
          * @type {Boolean}
          * @readonly
          */
-        alwaysShow : {
+        showInPopup : {
             get : function() {
-                return this._alwaysShow;
+                return this._showInPopup;
             }
         }
     });

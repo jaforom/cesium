@@ -3,22 +3,23 @@ define([
     '../Core/Credit',
     '../Core/defaultValue',
     '../Core/defined',
-    '../Core/destroyObject'
+    '../Core/destroyObject',
+    '../Core/DeveloperError'
 ], function(
     Check,
     Credit,
     defaultValue,
     defined,
-    destroyObject) {
+    destroyObject,
+    DeveloperError) {
     'use strict';
 
     var lightboxHeight = 300;
 
-    function displayTextCredit(credit, container, type, delimiter) {
+    function makeTextCredit(credit, element) {
         if (!defined(credit.element)) {
             var text = credit.text;
             var link = credit.link;
-            var element = document.createElement(type);
             if (credit.hasLink()) {
                 var a = document.createElement('a');
                 a.textContent = text;
@@ -30,21 +31,15 @@ define([
             }
             element.className = 'cesium-credit-text';
             credit.element = element;
+            return element;
         }
-        if (defined(delimiter) && container.hasChildNodes()) {
-            var del = document.createElement('span');
-            del.textContent = delimiter;
-            del.className = 'cesium-credit-delimiter';
-            container.appendChild(del);
-        }
-        container.appendChild(credit.element);
+        // return credit.element;
     }
 
-    function displayImageCredit(credit, container, type) {
+    function makeImageCredit(credit, element) {
         if (!defined(credit.element)) {
             var text = credit.text;
             var link = credit.link;
-            var element = document.createElement(type);
             var content = document.createElement('img');
             content.src = credit.imageUrl;
             content.style['vertical-align'] = 'bottom';
@@ -65,7 +60,7 @@ define([
             element.className = 'cesium-credit-image';
             credit.element = element;
         }
-        container.appendChild(credit.element);
+        return credit.element;
     }
 
     function contains(credits, credit) {
@@ -79,20 +74,26 @@ define([
         return false;
     }
 
-    function displayTextCredits(creditDisplay, textCredits, isDefault) {
+    function displayTextCredits(creditDisplay, textCredits) {
         var i;
         var index;
         var credit;
         var displayedTextCredits = creditDisplay._displayedCredits.textCredits;
+        var container = creditDisplay._textContainer;
         for (i = 0; i < textCredits.length; i++) {
             credit = textCredits[i];
             if (defined(credit)) {
                 index = displayedTextCredits.indexOf(credit);
                 if (index === -1) {
-                    if (isDefault) {
-                        displayTextCredit(credit, creditDisplay._textContainer, 'span', creditDisplay._delimiter);
-                    } else {
-                        displayTextCredit(credit, creditDisplay._creditList, 'li');
+                    var element = makeTextCredit(credit, document.createElement('span'));
+                    if (defined(element)) {
+                        if (container.hasChildNodes()) {
+                            var del = document.createElement('span');
+                            del.textContent = creditDisplay._delimiter;
+                            del.className = 'cesium-credit-delimiter';
+                            container.appendChild(del);
+                        }
+                        container.appendChild(element);
                     }
                 } else {
                     displayedTextCredits.splice(index, 1);
@@ -101,21 +102,19 @@ define([
         }
     }
 
-    function displayImageCredits(creditDisplay, imageCredits, isDefault) {
+    function displayImageCredits(creditDisplay, imageCredits) {
         var i;
         var index;
         var credit;
         var displayedImageCredits = creditDisplay._displayedCredits.imageCredits;
+        var container = creditDisplay._imageContainer;
         for (i = 0; i < imageCredits.length; i++) {
             credit = imageCredits[i];
             if (defined(credit)) {
                 index = displayedImageCredits.indexOf(credit);
                 if (index === -1) {
-                    if (isDefault) {
-                        displayImageCredit(credit, creditDisplay._imageContainer, 'span');
-                    } else {
-                        displayImageCredit(credit, creditDisplay._creditList, 'li');
-                    }
+                    var element = makeImageCredit(credit, document.createElement('span'));
+                    container.appendChild(element);
                 } else {
                     displayedImageCredits.splice(index, 1);
                 }
@@ -123,11 +122,36 @@ define([
         }
     }
 
-    function removeCreditDomElement(creditDisplay, credit) {
+    function displayLightboxCredits(creditDisplay, lighboxCredits) {
+        var i;
+        var index;
+        var credit;
+        var displayedCredits = creditDisplay._displayedCredits.lightboxCredits;
+        var container = creditDisplay._imageContainer;
+        for (i = 0; i < lighboxCredits.length; i++) {
+            credit = lighboxCredits[i];
+            if (defined(credit)) {
+                index = displayedCredits.indexOf(credit);
+                if (index === -1) {
+                    var element;
+                    if (credit.hasImage()) {
+                        element = makeImageCredit(credit, document.createElement('li'));
+                    } else {
+                        element = makeTextCredit(credit, document.createElement('li'));
+                    }
+                    container.appendChild(element);
+                } else {
+                    displayedCredits.splice(index, 1);
+                }
+            }
+        }
+    }
+
+    function removeCreditDomElement(credit) {
         var element = credit.element;
         if (defined(element)) {
             var container = element.parentNode;
-            if (contains(creditDisplay._defaultTextCredits, credit)) {
+            if (!credit.hasImage() && !credit.showInPopup) {
                 var delimiter = element.previousSibling;
                 if (delimiter === null) {
                     delimiter = element.nextSibling;
@@ -147,14 +171,21 @@ define([
         for (i = 0; i < displayedTextCredits.length; i++) {
             credit = displayedTextCredits[i];
             if (defined(credit)) {
-                removeCreditDomElement(creditDisplay, credit);
+                removeCreditDomElement(credit);
             }
         }
         var displayedImageCredits = creditDisplay._displayedCredits.imageCredits;
         for (i = 0; i < displayedImageCredits.length; i++) {
             credit = displayedImageCredits[i];
             if (defined(credit)) {
-                removeCreditDomElement(creditDisplay, credit);
+                removeCreditDomElement(credit);
+            }
+        }
+        var displayedLightboxCredits = creditDisplay._displayedCredits.lightboxCredits;
+        for (i = 0; i < displayedLightboxCredits.length; i++) {
+            credit = displayedLightboxCredits[i];
+            if (defined(credit)) {
+                removeCreditDomElement(credit);
             }
         }
     }
@@ -264,11 +295,13 @@ define([
 
         this._displayedCredits = {
             imageCredits : [],
-            textCredits : []
+            textCredits : [],
+            lightboxCredits: []
         };
         this._currentFrameCredits = {
             imageCredits : [],
-            textCredits : []
+            textCredits : [],
+            lightboxCredits: []
         };
 
         this.viewport = viewport;
@@ -290,16 +323,12 @@ define([
         Check.defined('credit', credit);
         //>>includeEnd('debug');
 
-        if (credit.hasImage()) {
-            var imageCredits = this._currentFrameCredits.imageCredits;
-            if (!contains(this._defaultImageCredits, credit)) {
-                imageCredits[credit.id] = credit;
-            }
+        if (credit.showInPopup) {
+            this._currentFrameCredits.lightboxCredits[credit.id] = credit;
+        } else if (credit.hasImage()) {
+            this._currentFrameCredits.imageCredits[credit.id] = credit;
         } else {
-            var textCredits = this._currentFrameCredits.textCredits;
-            if (!contains(this._defaultTextCredits, credit)) {
-                textCredits[credit.id] = credit;
-            }
+            this._currentFrameCredits.textCredits[credit.id] = credit;
         }
     };
 
@@ -311,6 +340,9 @@ define([
     CreditDisplay.prototype.addDefaultCredit = function(credit) {
         //>>includeStart('debug', pragmas.debug);
         Check.defined('credit', credit);
+        if (credit.showInPopup) {
+            throw new DeveloperError('showInPopup must be false for default credits');
+        }
         //>>includeEnd('debug');
 
         if (credit.hasImage()) {
@@ -372,11 +404,15 @@ define([
      * Sets the credit display to the end of frame state, displaying current credits in the credit container
      */
     CreditDisplay.prototype.endFrame = function() {
-        displayTextCredits(this, this._defaultTextCredits, true);
-        displayImageCredits(this, this._defaultImageCredits, true);
+        displayImageCredits(this, this._defaultImageCredits);
+        displayTextCredits(this, this._defaultTextCredits);
 
-        var displayedTextCredits = this._defaultTextCredits.slice();
-        var displayedImageCredits = this._defaultImageCredits.slice();
+        displayImageCredits(this, this._currentFrameCredits.imageCredits);
+        displayTextCredits(this, this._currentFrameCredits.textCredits);
+
+        var displayedTextCredits = this._defaultTextCredits.concat(this._currentFrameCredits.textCredits);
+        var displayedImageCredits = this._defaultImageCredits.concat(this._currentFrameCredits.imageCredits);
+        var displayedLightboxCredits = [];
 
         if (this._expanded) {
             var height = this.viewport.clientHeight;
@@ -385,9 +421,9 @@ define([
                 this._lastViewportHeight = height;
             }
 
-            displayImageCredits(this, this._currentFrameCredits.imageCredits, false);
-            displayTextCredits(this, this._currentFrameCredits.textCredits, false);
+            displayLightboxCredits(this, this._currentFrameCredits.lightboxCredits);
 
+            displayedLightboxCredits = this._currentFrameCredits.lightboxCredits;
             displayedTextCredits = displayedTextCredits.concat(this._currentFrameCredits.textCredits);
             displayedImageCredits = displayedImageCredits.concat(this._currentFrameCredits.imageCredits);
         }
@@ -396,6 +432,7 @@ define([
 
         this._displayedCredits.textCredits = displayedTextCredits;
         this._displayedCredits.imageCredits = displayedImageCredits;
+        this._displayedCredits.lightboxCredits = displayedLightboxCredits;
     };
 
     /**
