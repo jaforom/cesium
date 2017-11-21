@@ -14,7 +14,7 @@ define([
     DeveloperError) {
     'use strict';
 
-    var lightboxHeight = 300;
+    var lightboxHeight = 100;
 
     function makeTextCredit(credit, element) {
         if (!defined(credit.element)) {
@@ -25,6 +25,7 @@ define([
                 a.textContent = text;
                 a.href = link;
                 a.target = '_blank';
+                a.style.color = 'white';
                 element.appendChild(a);
             } else {
                 element.textContent = text;
@@ -33,7 +34,7 @@ define([
             credit.element = element;
             return element;
         }
-        // return credit.element;
+        return credit.element;
     }
 
     function makeImageCredit(credit, element) {
@@ -127,7 +128,7 @@ define([
         var index;
         var credit;
         var displayedCredits = creditDisplay._displayedCredits.lightboxCredits;
-        var container = creditDisplay._imageContainer;
+        var container = creditDisplay._creditList;
         for (i = 0; i < lighboxCredits.length; i++) {
             credit = lighboxCredits[i];
             if (defined(credit)) {
@@ -139,6 +140,7 @@ define([
                     } else {
                         element = makeTextCredit(credit, document.createElement('li'));
                     }
+                    element.style.paddingBottom = '6px';
                     container.appendChild(element);
                 } else {
                     displayedCredits.splice(index, 1);
@@ -232,8 +234,8 @@ define([
         lightboxCredits.style.position = 'relative';
         lightboxCredits.style.margin = 'auto';
         lightboxCredits.style.marginTop = Math.floor((viewportHeight - lightboxHeight) * 0.5) + 'px';
-        lightboxCredits.style.width = '500px';
-        lightboxCredits.style.height = lightboxHeight + 'px';
+        lightboxCredits.style.width = '370px';
+        lightboxCredits.style.minHeight = lightboxHeight + 'px';
         lightbox.appendChild(lightboxCredits);
         lightbox.onclick = function(event) {
             if (event.target === lightboxCredits) {
@@ -259,6 +261,9 @@ define([
         lightboxCredits.appendChild(closeButton);
 
         var creditList = document.createElement('ul');
+        creditList.style['list-style-type'] = 'none';
+        creditList.style.padding = 0;
+        creditList.style.margin = 0;
         lightboxCredits.appendChild(creditList);
 
         var imageContainer = document.createElement('span');
@@ -272,6 +277,7 @@ define([
         var expandLink = document.createElement('a');
         expandLink.onclick = this.showLightbox.bind(this);
         expandLink.textContent = 'Terrain and imagery data from multiple sources';
+        expandLink.style.paddingLeft = '5px';
         expandLink.style.cursor = 'pointer';
         expandLink.style.textDecoration = 'underline';
         expandLink.onmouseover = function() {
@@ -398,6 +404,7 @@ define([
     CreditDisplay.prototype.beginFrame = function() {
         this._currentFrameCredits.imageCredits.length = 0;
         this._currentFrameCredits.textCredits.length = 0;
+        this._currentFrameCredits.lightboxCredits.length = 0;
     };
 
     /**
@@ -417,15 +424,13 @@ define([
         if (this._expanded) {
             var height = this.viewport.clientHeight;
             if (height !== this._lastViewportHeight) {
-                this._lightboxCredits.style.marginTop = Math.floor((height - lightboxHeight) * 0.5) + 'px';
+                this._lightboxCredits.style.marginTop = Math.floor((height - this._lightboxCredits.clientHeight) * 0.5) + 'px';
                 this._lastViewportHeight = height;
             }
 
             displayLightboxCredits(this, this._currentFrameCredits.lightboxCredits);
 
-            displayedLightboxCredits = this._currentFrameCredits.lightboxCredits;
-            displayedTextCredits = displayedTextCredits.concat(this._currentFrameCredits.textCredits);
-            displayedImageCredits = displayedImageCredits.concat(this._currentFrameCredits.imageCredits);
+            displayedLightboxCredits = this._currentFrameCredits.lightboxCredits.slice();
         }
 
         removeUnusedCredits(this);
